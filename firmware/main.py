@@ -15,31 +15,50 @@ def get_text_datasets(reader):
     (stat, tag_type) = reader.request(reader.REQIDL)
     if stat != reader.OK: return text
 
+
     (stat, uid) = reader.SelectTagSN()
     if stat != reader.OK: return text
-
-    # Schlüssel definieren
-    firstKey = [0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5]
-    nextKey = [0xD3, 0xF7, 0xD3, 0xF7, 0xD3, 0xF7]
     
-    # Relevante Blöcke (Sektor 0 überspringen wir meist, da dort oft nur Config steht)
-    # Wenn deine Daten in Sektor 1 beginnen:
-    blocks_to_read = [(1, 0, nextKey), (1, 1, nextKey), (1, 2, nextKey)]
+    if len(all_raw_data) < 7:
+        for page in range(4, 16):
+            stat_ul, data_ul = reader.read(page)
+            if stat_ul == reader.OK and data_ul:
+                all_raw_data.extend(bytes(data_ul))
+            else:
+                break    
+    
+    if len(all_raw_data)< 7:
+        reader.init()
+        (stat, tag_type) = reader.request(reader.REQIDL)
+        if stat != reader.OK: return text
 
-    # 1. Alle Rohdaten in einen Puffer laden
-    for sector, block, key in blocks_to_read:
-        res = reader.readSectorBlock(uid, sector, block, key, None)
+
+        (stat, uid) = reader.SelectTagSN()
+        if stat != reader.OK: return text        
+        # Schlüssel definieren
+        firstKey = [0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5]
+        nextKey = [0xD3, 0xF7, 0xD3, 0xF7, 0xD3, 0xF7]
         
-        # Sicherstellen, dass wir das Daten-Objekt korrekt extrahieren
-        # Viele Bibliotheken geben (status, data) zurück
-        if isinstance(res, tuple):
-            status, data = res
-        else:
-            status, data = reader.OK, res # Falls nur Daten kommen
+        # Relevante Blöcke (Sektor 0 überspringen wir meist, da dort oft nur Config steht)
+        # Wenn deine Daten in Sektor 1 beginnen:
+        blocks_to_read = [(1, 0, nextKey), (1, 1, nextKey), (1, 2, nextKey)]
 
-        if status == reader.OK and data:
-            # In MicroPython sicherstellen, dass data iterierbar ist
-            all_raw_data.extend(bytes(data))
+        # 1. Alle Rohdaten in einen Puffer laden
+        for sector, block, key in blocks_to_read:
+            res = reader.readSectorBlock(uid, sector, block, key, None)
+            
+            # Sicherstellen, dass wir das Daten-Objekt korrekt extrahieren
+            # Viele Bibliotheken geben (status, data) zurück
+            if isinstance(res, tuple):
+                status, data = res
+            else:
+                status, data = reader.OK, res # Falls nur Daten kommen
+
+            if status == reader.OK and data:
+                # In MicroPython sicherstellen, dass data iterierbar ist
+                all_raw_data.extend(bytes(data))
+            
+    if len(all_raw_data) < 7: return None
 
     # 2. NDEF Parser Logik
     i = 0
@@ -160,9 +179,7 @@ print("Text-Datensätze Leser")
 print("")
 
 while True:
-    #print(f"\nCHECK")
     text = get_text_datasets(reader)
-    
     print(f"\nTexte: {text}")
     
     utime.sleep_ms(500)
