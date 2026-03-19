@@ -176,7 +176,7 @@ btn_prev.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=btn_isr)
 pixel = neopixel.NeoPixel(Pin(LED1_PIN), 1)
 pixel2 = neopixel.NeoPixel(Pin(LED2_PIN), 1)
 
-busy_pin = Pin(BUSY_PIN_NUM, Pin.IN)
+busy_pin = Pin(BUSY_PIN, Pin.IN)
 
 class Colors:
     RED     = (50, 0, 0)
@@ -202,13 +202,13 @@ set_pixel_color(Colors.WHITE)
 
 #time.sleep(1)
 player = DFPlayerMini(1,4,5)
-#time.sleep(1)
+time.sleep(1)
 
 def wait_until_playing(busy_pin, timeout_ms=500):
     start = utime.ticks_ms()
     while utime.ticks_diff(utime.ticks_ms(), start) < timeout_ms:
         if busy_pin.value() == 0:
-        utime.sleep_ms(10)
+            utime.sleep_ms(10)
     return False
 
 while True:
@@ -216,7 +216,7 @@ while True:
     if player.reset() == True:
         print ("Reset: OK")
         break
-    #time.sleep(1)
+    time.sleep(1)
     break
 
 
@@ -232,7 +232,7 @@ print ("Read volume")
 read_value = player.get_volume()
 print (f"Volume {read_value}")
 
-player.set_volume(30)
+player.set_volume(15)
 
 print ("Read volume")
 read_value = player.get_volume()
@@ -260,10 +260,6 @@ while True:
         if state["active"]:
             duration = utime.ticks_diff(now, state["start_time"])
             
-            # 1. Visual Feedback (Yellow LED for short/start press)
-            if duration > DEBOUNCE_MS:
-                led_yellow_until = now + 300 # Keep yellow for 300ms
-            
             # 2. Long Press Logic (Volume)
             if duration > LONG_PRESS_MS:
                 if utime.ticks_diff(now, last_vol_tick) > VOL_STEP_MS:
@@ -275,8 +271,9 @@ while True:
                         player.set_volume(max(current_vol - 2, 0))
                         print("Volume DOWN")
                     
+                    led_yellow_until = now + 150 
                     last_vol_tick = now
-                    state["long_done"] = True # Mark that we did long press
+                    state["long_done"] = True
 
     #Short Press Logic (Next/Prev Song)
     # Detect release after a short press
@@ -285,6 +282,7 @@ while True:
         if not state["active"] and state["start_time"] > 0:
             duration = utime.ticks_diff(now, state["start_time"])
             if DEBOUNCE_MS < duration < LONG_PRESS_MS:
+                led_yellow_until = now + 100
                 if pin_id == BTN_NEXT_PIN:
                     print("Action: NEXT SONG")
                     # player.next()
@@ -292,7 +290,8 @@ while True:
                     print("Action: PREV SONG")
                     # player.previous()
             
-            state["start_time"] = 0 # Reset after release
+            state["start_time"] = 0 
+            state["active"] = False
 
     #LED Control
     if utime.ticks_ms() < led_yellow_until:
@@ -306,6 +305,7 @@ while True:
         if manager.check():
             if manager.has_valid_tag():
                 print("new tag")
+                player.play(1)
                 if manager.has_error:
                     color_led = Colors.RED
                 else:
@@ -315,10 +315,11 @@ while True:
                         if val is None: break
                         print("Zahl:", val)            
             else:
+                player.stop()
                 color_led = Colors.GREEN
                 print("no tag")
                 
-    if                 
+    #if                 
   
     loop_count = (loop_count + 1) % 100
     utime.sleep_ms(50)
