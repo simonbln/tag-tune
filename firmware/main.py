@@ -135,9 +135,48 @@ class NDEFDataManager:
 print("start")
 
 
-input_signal = Pin(2, Pin.IN, Pin.PULL_UP) 
-pixel = neopixel.NeoPixel(Pin(16), 1)
-pixel2 = neopixel.NeoPixel(Pin(28), 1)
+
+# --- Configuration ---
+BTN_NEXT_PIN = 6
+BTN_PREV_PIN = 7
+DEBOUNCE_MS = 50 
+LONG_PRESS_MS = 1000
+VOL_STEP_MS = 500
+
+BUSY_PIN = 3
+
+LED1_PIN = 16
+LED2_PIN = 27
+
+# --- Global States ---
+# We store (timestamp, is_pressed)
+btn_states = {
+    BTN_NEXT_PIN: {"start_time": 0, "active": False, "long_done": False},
+    BTN_PREV_PIN: {"start_time": 0, "active": False, "long_done": False}
+}
+
+
+# --- Shared ISR for Buttons ---
+def btn_isr(pin):
+    pin_num = 6 if "6" in str(pin) else 7 # Simple way to get ID
+    if pin.value() == 0: # Pressed (Falling)
+        if not btn_states[pin_num]["active"]:
+            btn_states[pin_num]["start_time"] = utime.ticks_ms()
+            btn_states[pin_num]["active"] = True
+            btn_states[pin_num]["long_done"] = False
+    else: # Released (Rising)
+        btn_states[pin_num]["active"] = False
+        
+# Setup Pins
+btn_next = Pin(BTN_NEXT_PIN, Pin.IN, Pin.PULL_UP)
+btn_prev = Pin(BTN_PREV_PIN, Pin.IN, Pin.PULL_UP)
+btn_next.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=btn_isr)
+btn_prev.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=btn_isr)
+
+pixel = neopixel.NeoPixel(Pin(LED1_PIN), 1)
+pixel2 = neopixel.NeoPixel(Pin(LED2_PIN), 1)
+
+busy_pin = Pin(BUSY_PIN_NUM, Pin.IN)
 
 class Colors:
     RED     = (50, 0, 0)
@@ -157,6 +196,7 @@ def set_pixel_color(color_rgb):
         pixel2[0]= color_rgb
         pixel.write()
         pixel2.write()
+
     
 set_pixel_color(Colors.WHITE)
 
@@ -164,7 +204,12 @@ set_pixel_color(Colors.WHITE)
 player = DFPlayerMini(1,4,5)
 #time.sleep(1)
 
-
+def wait_until_playing(busy_pin, timeout_ms=500):
+    start = utime.ticks_ms()
+    while utime.ticks_diff(utime.ticks_ms(), start) < timeout_ms:
+        if busy_pin.value() == 0:
+        utime.sleep_ms(10)
+    return False
 
 while True:
     print ("Reset")
@@ -194,35 +239,89 @@ read_value = player.get_volume()
 print (f"Volume {read_value}")
 
 
-# SPI Konfiguration für RP2040-Zero
-sck = 10
-mosi = 11
-miso = 12
-sda = 13
-rst = 9
 reader = MFRC522(spi_id=1, sck=10, mosi=11, miso=12, cs=13, rst=9)
 manager = NDEFDataManager(reader)
 
+led_yellow_until = 0
+last_vol_tick = 0
+
 valid_tag = False
 color_led = Colors.GREEN
+
+loop_count = 0
+
 while True:
-    if manager.check():
-        if manager.has_valid_tag():
-            print("new tag")
-            if manager.has_error:
-                color_led = Colors.RED
+    now = utime.ticks_ms()
+    
+    # Process both buttons
+    for pin_id in [BTN_NEXT_PIN, BTN_PREV_PIN]:
+        state = btn_states[pin_id]
+        
+        if state["active"]:
+            duration = utime.ticks_diff(now, state["start_time"])
+            
+            # 1. Visual Feedback (Yellow LED for short/start press)
+            if duration > DEBOUNCE_MS:
+                led_yellow_until = now + 300 # Keep yellow for 300ms
+            
+            # 2. Long Press Logic (Volume)
+            if duration > LONG_PRESS_MS:
+                if utime.ticks_diff(now, last_vol_tick) > VOL_STEP_MS:
+                    current_vol = player.get_volume()
+                    if pin_id == BTN_NEXT_PIN:
+                        player.set_volume(min(current_vol + 2, 30))
+                        print("Volume UP")
+                    else:
+                        player.set_volume(max(current_vol - 2, 0))
+                        print("Volume DOWN")
+                    
+                    last_vol_tick = now
+                    state["long_done"] = True # Mark that we did long press
+
+    #Short Press Logic (Next/Prev Song)
+    # Detect release after a short press
+    for pin_id in [BTN_NEXT_PIN, BTN_PREV_PIN]:
+        state = btn_states[pin_id]
+        if not state["active"] and state["start_time"] > 0:
+            duration = utime.ticks_diff(now, state["start_time"])
+            if DEBOUNCE_MS < duration < LONG_PRESS_MS:
+                if pin_id == BTN_NEXT_PIN:
+                    print("Action: NEXT SONG")
+                    # player.next()
+                else:
+                    print("Action: PREV SONG")
+                    # player.previous()
+            
+            state["start_time"] = 0 # Reset after release
+
+    #LED Control
+    if utime.ticks_ms() < led_yellow_until:
+        set_pixel_color(Colors.YELLOW)
+    else:
+        # Fall back to normal tag-based color
+        set_pixel_color(color_led)
+        
+    #check for nfc tag
+    if (loop_count % 10) == 0:
+        if manager.check():
+            if manager.has_valid_tag():
+                print("new tag")
+                if manager.has_error:
+                    color_led = Colors.RED
+                else:
+                    color_led = Colors.BLUE
+                    while True:
+                        val = manager.get_next_value()
+                        if val is None: break
+                        print("Zahl:", val)            
             else:
-                color_led = Colors.BLUE
-                while True:
-                    val = manager.get_next_value()
-                    if val is None: break
-                    print("Zahl:", val)            
-        else:
-            color_led = Colors.GREEN
-            print("no tag")
+                color_led = Colors.GREEN
+                print("no tag")
+                
+    if                 
   
-    set_pixel_color(color_led)
-    utime.sleep_ms(500)
+    loop_count = (loop_count + 1) % 100
+    utime.sleep_ms(50)
     
 
         
