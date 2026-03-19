@@ -228,15 +228,10 @@ print ("Read Num files")
 count_songs = player.query_num_files()
 print (f"Num files {count_songs}")
 
-print ("Read volume")
-read_value = player.get_volume()
-print (f"Volume {read_value}")
-
 player.set_volume(15)
-
 print ("Read volume")
-read_value = player.get_volume()
-print (f"Volume {read_value}")
+current_vol = player.get_volume()
+print (f"Volume {current_vol}")
 
 
 reader = MFRC522(spi_id=1, sck=10, mosi=11, miso=12, cs=13, rst=9)
@@ -260,18 +255,22 @@ while True:
         if state["active"]:
             duration = utime.ticks_diff(now, state["start_time"])
             
+            # 1. Visual Feedback (Yellow LED for short/start press)
+            if duration > DEBOUNCE_MS:
+                led_yellow_until = now + 200 # Keep yellow for 300ms
+            
             # 2. Long Press Logic (Volume)
             if duration > LONG_PRESS_MS:
                 if utime.ticks_diff(now, last_vol_tick) > VOL_STEP_MS:
-                    current_vol = player.get_volume()
+                    
                     if pin_id == BTN_NEXT_PIN:
-                        player.set_volume(min(current_vol + 2, 30))
+                        current_vol = min(current_vol + 2, 30)
                         print("Volume UP")
                     else:
-                        player.set_volume(max(current_vol - 2, 0))
+                        current_vol = max(current_vol - 2, 0)            
                         print("Volume DOWN")
                     
-                    led_yellow_until = now + 150 
+                    player.set_volume(current_vol)
                     last_vol_tick = now
                     state["long_done"] = True
 
@@ -282,7 +281,6 @@ while True:
         if not state["active"] and state["start_time"] > 0:
             duration = utime.ticks_diff(now, state["start_time"])
             if DEBOUNCE_MS < duration < LONG_PRESS_MS:
-                led_yellow_until = now + 100
                 if pin_id == BTN_NEXT_PIN:
                     print("Action: NEXT SONG")
                     # player.next()
@@ -319,7 +317,10 @@ while True:
                 color_led = Colors.GREEN
                 print("no tag")
                 
-    #if                 
+        if busy_pin.value() == 0:
+            print("playing")
+        else:
+            print("not playing")             
   
     loop_count = (loop_count + 1) % 100
     utime.sleep_ms(50)
