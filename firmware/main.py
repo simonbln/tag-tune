@@ -8,8 +8,9 @@ import random
 from dfplayermini import DFPlayerMini
 
 class NDEFDataManager:
-    def __init__(self, reader):
+    def __init__(self, reader, max_files):
         self.reader = reader
+        self.max_files = max_files
         self.last_text = None
         self.values = []
         self.current_index = 0
@@ -25,7 +26,8 @@ class NDEFDataManager:
         if raw_text is None:
             if self.last_text is not None:
                 # Tag lost: clear active state but keep index/saved_text for potential resume
-                self.last_text = None 
+                self.last_text = None
+                print("check: tag gone")
                 return True # Status change: tag gone
             return False
 
@@ -39,7 +41,8 @@ class NDEFDataManager:
                 if self.current_index < len(self.values):
                     self._is_resuming = True
                 else:
-                    self.current_index = 0 
+                    self.current_index = 0
+                    print(f"check: tag is back: {raw_text}")
                 return True
             return False
 
@@ -48,6 +51,7 @@ class NDEFDataManager:
         self._saved_text = raw_text # Persistent memory for resume check
         self.current_index = 0
         self._parse_values(raw_text)
+        print(f"check: tag is new: {raw_text}")
         return True
 
     def shall_resume(self):
@@ -59,12 +63,25 @@ class NDEFDataManager:
         return self.last_text is not None
 
     def get_next_value(self):
-        """Returns the next integer from the array or None if finished."""
-        if self.current_index < len(self.values):
+        while self.current_index < len(self.values):
             val = self.values[self.current_index]
             self.current_index += 1
-            return val
+            print(f"get_next_val: {val}")
+            if val <= self.max_files:
+                print(f"get_next_val: {val}: OK")
+                return val
+        print(f"gejt_next_val: nothing found")       
         return None
+    
+    def get_prev_value(self):
+        while self.current_index > 0:
+            self.current_index -= 1
+            val = self.values[self.current_index]
+            
+            if val <= self.max_files:
+                return val
+                
+        return None    
 
     def _parse_values(self, text):
         """Parses comma-separated string into an integer list."""
@@ -180,12 +197,12 @@ busy_pin = Pin(BUSY_PIN, Pin.IN)
 
 class Colors:
     RED     = (50, 0, 0)
-    GREEN   = (0, 50, 0)
-    BLUE    = (0, 0, 50)
-    YELLOW  = (50, 50, 0)
-    CYAN    = (0, 50, 50)
-    MAGENTA = (50, 0, 50)
-    WHITE   = (50, 50, 50)
+    GREEN   = (0, 150, 0)
+    BLUE    = (0, 0, 150)
+    YELLOW  = (150, 150, 0)
+    CYAN    = (0, 150, 150)
+    MAGENTA = (150, 0, 150)
+    WHITE   = (150, 150, 150)
     OFF     = (0, 0, 0)
     
 last_color =  Colors.OFF
@@ -200,11 +217,11 @@ def set_pixel_color(color_rgb):
     
 set_pixel_color(Colors.WHITE)
 
-#time.sleep(1)
-player = DFPlayerMini(1,4,5)
-time.sleep(1)
 
-def wait_until_playing(busy_pin, timeout_ms=500):
+time.sleep(2)
+player = DFPlayerMini(1,4,5)
+
+def wait_until_playing(timeout_ms=500):
     start = utime.ticks_ms()
     while utime.ticks_diff(utime.ticks_ms(), start) < timeout_ms:
         if busy_pin.value() == 0:
@@ -219,14 +236,17 @@ while True:
     time.sleep(1)
     break
 
-
-
 time.sleep(1)
 player.select_source('sdcard')
 
 print ("Read Num files")
 count_songs = player.query_num_files()
 print (f"Num files {count_songs}")
+
+if count_songs == 0:
+    while True:
+        set_pixel_color(Colors.RED)
+        time.sleep(10)
 
 player.set_volume(15)
 print ("Read volume")
@@ -235,14 +255,11 @@ print (f"Volume {current_vol}")
 
 
 reader = MFRC522(spi_id=1, sck=10, mosi=11, miso=12, cs=13, rst=9)
-manager = NDEFDataManager(reader)
+manager = NDEFDataManager(reader, count_songs)
 
 led_yellow_until = 0
 last_vol_tick = 0
-
-valid_tag = False
 color_led = Colors.GREEN
-
 loop_count = 0
 
 while True:
@@ -264,10 +281,10 @@ while True:
                 if utime.ticks_diff(now, last_vol_tick) > VOL_STEP_MS:
                     
                     if pin_id == BTN_NEXT_PIN:
-                        current_vol = min(current_vol + 2, 30)
-                        print("Volume UP")
+                        current_vol = min(current_vol + 1, 30)
+                        print(f"Volume UP: {current_vol}")
                     else:
-                        current_vol = max(current_vol - 2, 0)            
+                        current_vol = max(current_vol - 1, 0)            
                         print("Volume DOWN")
                     
                     player.set_volume(current_vol)
@@ -281,12 +298,20 @@ while True:
         if not state["active"] and state["start_time"] > 0:
             duration = utime.ticks_diff(now, state["start_time"])
             if DEBOUNCE_MS < duration < LONG_PRESS_MS:
-                if pin_id == BTN_NEXT_PIN:
-                    print("Action: NEXT SONG")
-                    # player.next()
-                else:
-                    print("Action: PREV SONG")
-                    # player.previous()
+                if manager.has_valid_tag():
+                    val = None
+                    if pin_id == BTN_NEXT_PIN:
+                        print("Action: NEXT SONG")
+                        val = manager.get_next_value()
+                    else:
+                        print("Action: PREV SONG")
+                        val = manager.get_prev_value()
+                    if val:
+                        player.play(val)
+                        wait_until_playing()
+                    else:
+                        #nothing to play
+                        color_led = Colors.CYAN
             
             state["start_time"] = 0 
             state["active"] = False
@@ -303,24 +328,35 @@ while True:
         if manager.check():
             if manager.has_valid_tag():
                 print("new tag")
-                player.play(1)
                 if manager.has_error:
                     color_led = Colors.RED
                 else:
                     color_led = Colors.BLUE
-                    while True:
+                    if manager.shall_resume():
+                        player.start()
+                        wait_until_playing()
+                    else:
                         val = manager.get_next_value()
-                        if val is None: break
-                        print("Zahl:", val)            
+                        if val:
+                            player.play(val)
+                            wait_until_playing()
+                        else:
+                            #nothing to play
+                            color_led = Colors.CYAN
             else:
-                player.stop()
+                player.pause()
                 color_led = Colors.GREEN
                 print("no tag")
                 
-        if busy_pin.value() == 0:
-            print("playing")
-        else:
-            print("not playing")             
+        if color_led == Colors.BLUE and busy_pin.value() != 0:
+            #supposed to playing but not anymore, go to next
+            val = manager.get_next_value()
+            if val:
+                player.play(val)
+                wait_until_playing()
+            else:
+                #nothing to play
+                color_led = Colors.CYAN
   
     loop_count = (loop_count + 1) % 100
     utime.sleep_ms(50)
