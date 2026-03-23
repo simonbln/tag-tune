@@ -223,17 +223,19 @@ last_color =  Colors.OFF
 
 def set_pixel_color(color_rgb):
     if Colors.OFF != color_rgb:
-        pixel[0] = color_rgb
+        #pixel[0] = color_rgb
         pixel2[0]= color_rgb
-        pixel.write()
+        #pixel.write()
         pixel2.write()
 
     
-set_pixel_color(Colors.WHITE)
+
 
 
 time.sleep(2) # needs time when everything is powered together
 player = DFPlayerMini(1,4,5)
+
+set_pixel_color(Colors.WHITE)
 
 def wait_until_playing(timeout_ms=500):
     start = utime.ticks_ms()

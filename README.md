@@ -8,20 +8,22 @@ An open-source, USB-powered audio player that brings physical objects to life.
 3. [Firmware Details](#firmware-details)
 4. [DFPlayer Mini & SD Card Setup](#dfplayer-mini--sd-card-setup)
 5. [LED Status Indicators](#led-status-indicators)
-6. [How-To](#how-to)
+6. [How to Use](#how-to-use)
+7. [How to Build](#how-to-build)
     - [Breadboard Prototyping](#breadboard-prototyping)
     - [Firmware Setup](#firmware-setup)
     - [Important: USB Power Handling](#important-usb-power-handling)
     - [Build Prototype](#build-prototype)
-7. [Support me](#support-me)
-8. [Third-Party Code and License](#third-party-code-and-license)
+8. [Support Me](#support-me)
+9. [Third-Party Code and License](#third-party-code-and-license)
 
 ## Components
 - RP2040 (Zero)
 - DFPlayer Mini
+- RC522 NFC reader
 - USB Connector
 - WS2812 (NeoPixel LED)
-- Speaker
+- 2 Speaker 3 Ohm 
 - Micro SD Card
 - Perfboard (5x7cm)
 - Connectors / Cables
@@ -30,10 +32,6 @@ An open-source, USB-powered audio player that brings physical objects to life.
 ## Wiring Diagram
 ![Wiring Diagram](docu/wiring_bb.jpg)
 Figure 1: Wiring diagram on the perfboard
-
-- **Connector J1** 
-- **Connector J2**
-- **Connector J3**
 
 ## Firmware Details
 The firmware is written in **MicroPython** and utilizes a modified version of the [penguintutor/dfplayermini-pico](https://github.com/penguintutor/dfplayermini-pico) library.
@@ -51,13 +49,25 @@ The module requires a specific file naming convention to function reliably:
 The WS2812 LED (internal on PIN 16 and (optional) extenal on PIN 28) provides visual feedback on the system's state:
 
 - **White:** System is initializing.
-- **Green:** Ready and waiting for light beam trigger.
-- **Blue:** 
+- **Green:** Ready and waiting for NFC tag.
+- **Blue:** Valid tag and playing
+- **Cyan:**  Finished playing on tag
+- **Red:**: Error: No SD card or invalid tag
 
-## How-To
+## How to use
+Copy music or audio stories onto an SD card. Write tags as plain text — list the numbers of the files you want to play, separated by commas. You can use your smartphone to write the tags.
+Example: 1,2,5 will play files 1, 2, and 5 from the SD card in that order.
+
+When you remove and then present the same tag again, playback will resume from where it stopped. If you present a different tag, playback starts from the beginning of that playlist. You can also remove the tag to pause.
+
+Use the buttons to go to the next or previous file (short press), or to adjust the volume up or down (long press).
+
+Later you can glue the tags onto figures or other objects. Have fun with your music box :)
+
+## How to build
 
 ### Breadboard Prototyping
-For initial testing, it is recommended to build the circuit on a breadboard first as seen on the wiring diagram.
+For initial testing, it is recommended to build the circuit on a breadboard first as shown in the wiring diagram.
 
 ### Firmware Setup
 1. Install **Thonny** IDE on your computer.
@@ -71,7 +81,13 @@ For initial testing, it is recommended to build the circuit on a breadboard firs
 - The external USB port will later be integrated into the enclosure.
 
 ### Build prototype
+Solder the components and wires onto the perfboard as shown in Figure 1. Once the assembly is complete, perform an initial functional test before mounting the board into the enclosure.
 
+![Soldering](docu/1.jpg)
+![First Test](docu/2.jpg)
+
+to be done:
+Drill the necessary holes for the cable glands and connectors, then insert them and secure with hot glue if necessary. The status LED was also routed through the lid for better visibility.
 
 ## Support me
 If you find this project helpful and would like to support my work, I would be very grateful for a contribution via GitHub Sponsors or in Bitcoin (BTC) / Litecoin (LTC). Every bit of support helps me to keep creating and sharing new projects. Thank you!
