@@ -38,7 +38,7 @@ class NDEFDataManager:
             if self.last_text is None: # It was away, now it's back
                 self.last_text = raw_text
                 # If there are elements left, enable resume; otherwise restart from 0
-                if self.current_index < len(self.values):
+                if self.current_index < len(self.values) and self.current_index >= 0:
                     self._is_resuming = True
                 else:
                     self.current_index = 0
@@ -61,27 +61,40 @@ class NDEFDataManager:
     def has_valid_tag(self):
         """Returns True if a tag is currently being detected."""
         return self.last_text is not None
+    
+    def get_first_value(self):
+        val = self.values[self.current_index]
+        print(f"get_first_value: {val}")
+        if val <= self.max_files:
+            print(f"get_first_value: {val}: OK")
+            return val
+        print("get_first_value: is not valid, get next")
+        return get_next_value()
 
     def get_next_value(self):
-        while self.current_index < len(self.values):
-            val = self.values[self.current_index]
+        while self.current_index < (len(self.values)-1):
             self.current_index += 1
+            val = self.values[self.current_index]
             print(f"get_next_val: {val}")
             if val <= self.max_files:
                 print(f"get_next_val: {val}: OK")
                 return val
-        print(f"gejt_next_val: nothing found")       
+        print(f"get_next_val: nothing found")
+        self.current_index = len(self.values)
         return None
     
     def get_prev_value(self):
         while self.current_index > 0:
             self.current_index -= 1
             val = self.values[self.current_index]
-            
+            print(f"get_prev_value: {val}")
             if val <= self.max_files:
+                print(f"get_prev_value: {val}: OK")
                 return val
-                
-        return None    
+        print(f"get_prev_value: nothing found")
+        self.current_index = -1
+        return None
+ 
 
     def _parse_values(self, text):
         """Parses comma-separated string into an integer list."""
@@ -218,7 +231,7 @@ def set_pixel_color(color_rgb):
 set_pixel_color(Colors.WHITE)
 
 
-time.sleep(2)
+time.sleep(2) # needs time when everything is powered together
 player = DFPlayerMini(1,4,5)
 
 def wait_until_playing(timeout_ms=500):
@@ -236,7 +249,7 @@ while True:
     time.sleep(1)
     break
 
-time.sleep(1)
+time.sleep(1) # needs time after a reset
 player.select_source('sdcard')
 
 print ("Read Num files")
@@ -301,16 +314,18 @@ while True:
                 if manager.has_valid_tag():
                     val = None
                     if pin_id == BTN_NEXT_PIN:
-                        print("Action: NEXT SONG")
                         val = manager.get_next_value()
+                        print(f"Action: NEXT SONG: {val}")
                     else:
-                        print("Action: PREV SONG")
                         val = manager.get_prev_value()
+                        print(f"Action: PREV SONG: {val}")                        
                     if val:
+                        color_led = Colors.BLUE
                         player.play(val)
                         wait_until_playing()
                     else:
                         #nothing to play
+                        player.stop()
                         color_led = Colors.CYAN
             
             state["start_time"] = 0 
@@ -336,7 +351,7 @@ while True:
                         player.start()
                         wait_until_playing()
                     else:
-                        val = manager.get_next_value()
+                        val = manager.get_first_value()
                         if val:
                             player.play(val)
                             wait_until_playing()
@@ -351,6 +366,7 @@ while True:
         if color_led == Colors.BLUE and busy_pin.value() != 0:
             #supposed to playing but not anymore, go to next
             val = manager.get_next_value()
+            print(f"song finished, next one: {val}")
             if val:
                 player.play(val)
                 wait_until_playing()
