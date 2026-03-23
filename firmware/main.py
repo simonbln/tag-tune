@@ -70,7 +70,7 @@ class NDEFDataManager:
                 print(f"get_first_value: {val}: OK")
                 return val
         print("get_first_value: is not valid, get next")
-        return get_next_value()
+        return self.get_next_value()
 
     def get_next_value(self):
         while self.current_index < (len(self.values)-1):
@@ -163,8 +163,6 @@ class NDEFDataManager:
             else: i += 1
         return None
 
-print("start")
-
 
 
 # --- Configuration ---
@@ -222,169 +220,176 @@ class Colors:
 last_color =  Colors.OFF
 
 def set_pixel_color(color_rgb):
-    if Colors.OFF != color_rgb:
+    global last_color
+    if last_color != color_rgb:
         #pixel[0] = color_rgb
         pixel2[0]= color_rgb
         #pixel.write()
         pixel2.write()
-
-    
-
-
-
-time.sleep(2) # needs time when everything is powered together
-player = DFPlayerMini(1,4,5)
-
-set_pixel_color(Colors.WHITE)
-
+        last_color = color_rgb
+        
 def wait_until_playing(timeout_ms=500):
     start = utime.ticks_ms()
     while utime.ticks_diff(utime.ticks_ms(), start) < timeout_ms:
         if busy_pin.value() == 0:
             utime.sleep_ms(10)
     return False
+        
 
-while True:
-    print ("Reset")
-    if player.reset() == True:
-        print ("Reset: OK")
-        break
-    time.sleep(1)
-    break
 
-time.sleep(1) # needs time after a reset
-player.select_source('sdcard')
+def main():
+    print("start")
 
-print ("Read Num files")
-count_songs = player.query_num_files()
-print (f"Num files {count_songs}")
+    time.sleep(2) # needs time when everything is powered together
+    player = DFPlayerMini(1,4,5)
 
-if count_songs == 0:
+    set_pixel_color(Colors.WHITE)
+
     while True:
-        set_pixel_color(Colors.RED)
-        time.sleep(10)
+        print ("Reset")
+        if player.reset() == True:
+            print ("Reset: OK")
+            break
+        time.sleep(1)
 
-player.set_volume(15)
-print ("Read volume")
-current_vol = player.get_volume()
-print (f"Volume {current_vol}")
+    time.sleep(1) # needs time after a reset
+    player.select_source('sdcard')
 
+    print ("Read Num files")
+    count_songs = player.query_num_files()
+    print (f"Num files {count_songs}")
 
-reader = MFRC522(spi_id=1, sck=10, mosi=11, miso=12, cs=13, rst=9)
-manager = NDEFDataManager(reader, count_songs)
+    if count_songs == 0:
+        while True:
+            set_pixel_color(Colors.RED)
+            time.sleep(10)
 
-led_yellow_until = 0
-last_vol_tick = 0
-color_led = Colors.GREEN
-loop_count = 0
-
-while True:
-    now = utime.ticks_ms()
+    player.set_volume(15)
+    print ("Read volume")
+    current_vol = player.get_volume()
+    print (f"Volume {current_vol}")
     
-    # Process both buttons
-    for pin_id in [BTN_NEXT_PIN, BTN_PREV_PIN]:
-        state = btn_states[pin_id]
-        
-        if state["active"]:
-            duration = utime.ticks_diff(now, state["start_time"])
-            
-            # Long Press Logic (Volume)
-            if duration > LONG_PRESS_MS:
-                set_pixel_color(Colors.YELLOW)
-                led_yellow_until = now + 200
-                if utime.ticks_diff(now, last_vol_tick) > VOL_STEP_MS:
-                    
-                    if pin_id == BTN_NEXT_PIN:
-                        current_vol = min(current_vol + 1, 30)
-                        print(f"Volume UP: {current_vol}")
-                    else:
-                        current_vol = max(current_vol - 1, 0)            
-                        print("Volume DOWN")
-                    
-                    player.set_volume(current_vol)
-                    last_vol_tick = now
-                    state["long_done"] = True
+    reader = MFRC522(spi_id=1, sck=10, mosi=11, miso=12, cs=13, rst=9)
+    manager = NDEFDataManager(reader, count_songs)
 
-    #Short Press Logic (Next/Prev Song)
-    # Detect release after a short press
-    for pin_id in [BTN_NEXT_PIN, BTN_PREV_PIN]:
-        state = btn_states[pin_id]
-        if not state["active"] and state["start_time"] > 0:
-            duration = utime.ticks_diff(now, state["start_time"])
-            if DEBOUNCE_MS < duration < LONG_PRESS_MS:
-                set_pixel_color(Colors.YELLOW)
-                led_yellow_until = utime.ticks_ms() + 200
-                if manager.has_valid_tag():
-                    val = None
-                    if pin_id == BTN_NEXT_PIN:
-                        val = manager.get_next_value()
-                        print(f"Action: NEXT SONG: {val}")
-                    else:
-                        val = manager.get_prev_value()
+    led_yellow_until = 0
+    last_vol_tick = 0
+    color_led = Colors.GREEN
+    loop_count = 0
+
+    while True:
+        now = utime.ticks_ms()
+        
+        # Process both buttons
+        for pin_id in [BTN_NEXT_PIN, BTN_PREV_PIN]:
+            state = btn_states[pin_id]
+            
+            if state["active"]:
+                duration = utime.ticks_diff(now, state["start_time"])
+                
+                # Long Press Logic (Volume)
+                if duration > LONG_PRESS_MS:
+                    set_pixel_color(Colors.YELLOW)
+                    led_yellow_until = now + 200
+                    if utime.ticks_diff(now, last_vol_tick) > VOL_STEP_MS:
                         
-                        print(f"Action: PREV SONG: {val}")                        
-                    if val:
-                        color_led = Colors.BLUE
-                        player.play(val)
-                        wait_until_playing()
-                    else:
-                        #nothing to play
-                        player.stop()
-                        color_led = Colors.CYAN
-            
-            state["start_time"] = 0 
-            state["active"] = False
+                        if pin_id == BTN_NEXT_PIN:
+                            current_vol = min(current_vol + 1, 30)
+                            print(f"Volume UP: {current_vol}")
+                        else:
+                            current_vol = max(current_vol - 1, 0)            
+                            print("Volume DOWN")
+                        
+                        player.set_volume(current_vol)
+                        last_vol_tick = now
+                        state["long_done"] = True
 
-    #LED Control
-    if utime.ticks_ms() < led_yellow_until:
-        set_pixel_color(Colors.YELLOW)
-    else:
-        # Fall back to normal tag-based color
-        set_pixel_color(color_led)
-        
-    #check for nfc tag
-    if (loop_count % 10) == 0:
-        if manager.check():
-            if manager.has_valid_tag():
-                print("new tag")
-                if manager.has_error:
-                    color_led = Colors.RED
-                else:
-                    color_led = Colors.BLUE
-                    if manager.shall_resume():
-                        player.start()
-                        wait_until_playing()
-                    else:
-                        val = manager.get_first_value()
+        #Short Press Logic (Next/Prev Song)
+        # Detect release after a short press
+        for pin_id in [BTN_NEXT_PIN, BTN_PREV_PIN]:
+            state = btn_states[pin_id]
+            if not state["active"] and state["start_time"] > 0:
+                duration = utime.ticks_diff(now, state["start_time"])
+                if DEBOUNCE_MS < duration < LONG_PRESS_MS:
+                    set_pixel_color(Colors.YELLOW)
+                    led_yellow_until = utime.ticks_ms() + 200
+                    if manager.has_valid_tag():
+                        val = None
+                        if pin_id == BTN_NEXT_PIN:
+                            val = manager.get_next_value()
+                            print(f"Action: NEXT SONG: {val}")
+                        else:
+                            val = manager.get_prev_value()
+                            
+                            print(f"Action: PREV SONG: {val}")                        
                         if val:
+                            color_led = Colors.BLUE
                             player.play(val)
                             wait_until_playing()
                         else:
                             #nothing to play
+                            player.stop()
                             color_led = Colors.CYAN
-            else:
-                player.pause()
-                color_led = Colors.GREEN
-                print("no tag")
                 
-        if color_led == Colors.BLUE and busy_pin.value() != 0:
-            #supposed to playing but not anymore, go to next
-            val = manager.get_next_value()
-            print(f"song finished, next one: {val}")
-            if val:
-                player.play(val)
-                wait_until_playing()
-            else:
-                #nothing to play
-                color_led = Colors.CYAN
-  
-    loop_count = (loop_count + 1) % 100
-    utime.sleep_ms(50)
+                state["start_time"] = 0 
+                state["active"] = False
+
+        #LED Control
+        if utime.ticks_ms() < led_yellow_until:
+            set_pixel_color(Colors.YELLOW)
+        else:
+            # Fall back to normal tag-based color
+            set_pixel_color(color_led)
+            
+        #check for nfc tag
+        if (loop_count % 10) == 0:
+            if manager.check():
+                if manager.has_valid_tag():
+                    print("new tag")
+                    if manager.has_error:
+                        color_led = Colors.RED
+                    else:
+                        color_led = Colors.BLUE
+                        if manager.shall_resume():
+                            player.start()
+                            wait_until_playing()
+                        else:
+                            val = manager.get_first_value()
+                            if val:
+                                player.play(val)
+                                wait_until_playing()
+                            else:
+                                #nothing to play
+                                color_led = Colors.CYAN
+                else:
+                    player.pause()
+                    color_led = Colors.GREEN
+                    print("no tag")
+                    
+            if color_led == Colors.BLUE and busy_pin.value() != 0:
+                #supposed to playing but not anymore, go to next
+                val = manager.get_next_value()
+                print(f"song finished, next one: {val}")
+                if val:
+                    player.play(val)
+                    wait_until_playing()
+                else:
+                    #nothing to play
+                    color_led = Colors.CYAN
+      
+        loop_count = (loop_count + 1) % 100
+        utime.sleep_ms(50)
     
 
-        
-
-
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        while True:
+            set_pixel_color(Colors.RED)
+            time.sleep(0.5)
+            set_pixel_color(Colors.OFF)
+            time.sleep(0.5)
 
 
 
