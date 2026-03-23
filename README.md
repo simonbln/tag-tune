@@ -30,7 +30,7 @@ An open-source, USB-powered audio player that brings physical objects to life.
 - Enclosure / Box
 
 ## Wiring Diagram
-![Wiring Diagram](docu/wiring_bb.jpg)
+![Wiring Diagram](docu/wiring_tagtune_bb.jpg)
 Figure 1: Wiring diagram on the perfboard
 
 ## Firmware Details
