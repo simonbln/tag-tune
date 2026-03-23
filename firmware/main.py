@@ -63,11 +63,12 @@ class NDEFDataManager:
         return self.last_text is not None
     
     def get_first_value(self):
-        val = self.values[self.current_index]
-        print(f"get_first_value: {val}")
-        if val <= self.max_files:
-            print(f"get_first_value: {val}: OK")
-            return val
+        if self.current_index < (len(self.values)) and self.current_index >= 0:
+            val = self.values[self.current_index]
+            print(f"get_first_value: {val}")
+            if val <= self.max_files:
+                print(f"get_first_value: {val}: OK")
+                return val
         print("get_first_value: is not valid, get next")
         return get_next_value()
 
@@ -285,12 +286,10 @@ while True:
         if state["active"]:
             duration = utime.ticks_diff(now, state["start_time"])
             
-            # 1. Visual Feedback (Yellow LED for short/start press)
-            if duration > DEBOUNCE_MS:
-                led_yellow_until = now + 200 # Keep yellow for 300ms
-            
-            # 2. Long Press Logic (Volume)
+            # Long Press Logic (Volume)
             if duration > LONG_PRESS_MS:
+                set_pixel_color(Colors.YELLOW)
+                led_yellow_until = now + 200
                 if utime.ticks_diff(now, last_vol_tick) > VOL_STEP_MS:
                     
                     if pin_id == BTN_NEXT_PIN:
@@ -311,6 +310,8 @@ while True:
         if not state["active"] and state["start_time"] > 0:
             duration = utime.ticks_diff(now, state["start_time"])
             if DEBOUNCE_MS < duration < LONG_PRESS_MS:
+                set_pixel_color(Colors.YELLOW)
+                led_yellow_until = utime.ticks_ms() + 200
                 if manager.has_valid_tag():
                     val = None
                     if pin_id == BTN_NEXT_PIN:
@@ -318,6 +319,7 @@ while True:
                         print(f"Action: NEXT SONG: {val}")
                     else:
                         val = manager.get_prev_value()
+                        
                         print(f"Action: PREV SONG: {val}")                        
                     if val:
                         color_led = Colors.BLUE
@@ -379,6 +381,8 @@ while True:
     
 
         
+
+
 
 
 
