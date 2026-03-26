@@ -55,14 +55,14 @@ The WS2812 LED (internal on PIN 16 and (optional) extenal on PIN 28) provides vi
 - **Red:**: Error: No SD card or invalid tag
 
 ## How to use
-Copy music or audio stories onto an SD card. Write tags as plain text — list the numbers of the files you want to play, separated by commas. You can use your smartphone to write the tags.
-Example: 1,2,5 will play files 1, 2, and 5 from the SD card in that order.
 
-When you remove and then present the same tag again, playback will resume from where it stopped. If you present a different tag, playback starts from the beginning of that playlist. You can also remove the tag to pause.
+Copy music or audio stories onto an SD card. Write tags as plain text on NFC tags — you can use your smartphone for that. On the tag, write the numbers of the files you want to play, separated by commas, for example: 1,2,5 will play files 1, 2, and 5 in that order. You can also use ranges with a minus sign, like 12-20 (plays files 12 through 20), or just a single file like 33. 
 
-Use the buttons to go to the next or previous file (short press), or to adjust the volume up or down (long press).
+Unfortunately, I can only read about 15 bytes from Ultralight NFC tags, so the list can't be too long — in that case you can use the range format instead, for example 102-139. 
 
-Later you can glue the tags onto figures or other objects. Have fun with your music box :)
+If you remove the same tag and hold it up again later, playback resumes from where it stopped. If you hold up a different tag, playback starts from the beginning. You can also just take the tag away to pause playback. Use the buttons to skip to the next or previous track with a short press, and adjust the volume with a long press. 
+
+You can glue the tags onto figures or other objects later. Have fun with your music box :)
 
 ## How to build
 
@@ -86,8 +86,10 @@ Solder the components and wires onto the perfboard as shown in Figure 1. Once th
 ![Soldering](docu/1.jpg)
 ![First Test](docu/2.jpg)
 
-to be done:
 Drill the necessary holes for the cable glands and connectors, then insert them and secure with hot glue if necessary. The status LED was also routed through the lid for better visibility.
+
+![Progress](docu/3.jpg)
+![Finished](docu/4.jpg)
 
 ## Support me
 If you find this project helpful and would like to support my work, I would be very grateful for a contribution via GitHub Sponsors or in Bitcoin (BTC) / Litecoin (LTC). Every bit of support helps me to keep creating and sharing new projects. Thank you!
