@@ -98,7 +98,9 @@ class NDEFDataManager:
  
 
     def _parse_values(self, text):
-        """Parses comma-separated string into an integer list."""
+        """Parses comma-separated string into an integer list.
+           Supports ranges like '4-50' which expand to 4,5,6,...,50.
+        """
         self.values = []
         self.current_index = 0
         self.has_error = False
@@ -106,10 +108,28 @@ class NDEFDataManager:
             parts = text.strip().split(',')
             for p in parts:
                 cleaned = p.strip()
-                if cleaned:
+                if not cleaned:
+                    continue
+                try:
+                    # Einzelne ganze Zahl
                     self.values.append(int(cleaned))
+                except ValueError:
+                    # Keine einzelne Zahl → möglicher Bereich
+                    if '-' in cleaned:
+                        range_parts = cleaned.split('-')
+                        if len(range_parts) == 2:
+                            start_str, end_str = range_parts
+                            start = int(start_str.strip())
+                            end = int(end_str.strip())
+                            if start <= end:
+                                self.values.extend(range(start, end+1))
+                            else:
+                                raise ValueError("Invalid range: start > end")
+                        else:
+                            raise ValueError("Invalid range format: more than one dash")
+                    else:
+                        raise ValueError("Invalid integer or range")
         except ValueError:
-            # Set error flag if formatting (non-integers) is wrong
             self.has_error = True
             self.values = []
 
