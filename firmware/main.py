@@ -228,13 +228,13 @@ pixel2 = neopixel.NeoPixel(Pin(LED2_PIN), 1)
 busy_pin = Pin(BUSY_PIN, Pin.IN)
 
 class Colors:
-    RED     = (50, 0, 0)
-    GREEN   = (0, 150, 0)
-    BLUE    = (0, 0, 150)
-    YELLOW  = (150, 150, 0)
-    CYAN    = (0, 150, 150)
-    MAGENTA = (150, 0, 150)
-    WHITE   = (150, 150, 150)
+    RED     = (20, 0, 0)
+    GREEN   = (0, 20, 0)
+    BLUE    = (0, 0, 20)
+    YELLOW  = (50, 50, 0)
+    CYAN    = (0, 50, 50)
+    MAGENTA = (20, 0, 20)
+    WHITE   = (20, 20, 20)
     OFF     = (0, 0, 0)
     
 last_color =  Colors.OFF
@@ -259,12 +259,13 @@ def wait_until_playing(timeout_ms=500):
 
 def main():
     print("start")
-
-    time.sleep(2) # needs time when everything is powered together
+    
+    time.sleep(1)
+    set_pixel_color(Colors.WHITE)
+    time.sleep(1) # needs time when everything is powered together
     player = DFPlayerMini(1,4,5)
 
-    set_pixel_color(Colors.WHITE)
-
+    
     while True:
         print ("Reset")
         if player.reset() == True:
@@ -284,7 +285,7 @@ def main():
             set_pixel_color(Colors.RED)
             time.sleep(10)
 
-    player.set_volume(15)
+    player.set_volume(20)
     print ("Read volume")
     current_vol = player.get_volume()
     print (f"Volume {current_vol}")
